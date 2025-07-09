@@ -4,6 +4,7 @@
     <title>Previsioni Meteo</title>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         body {
             font-family: 'Arial', sans-serif;
@@ -15,7 +16,36 @@
         h1 {
             color: #333;
             text-align: center;
+            margin-bottom: 10px;
+        }
+        .city-name {
+            color: #2196F3;
+            text-align: center;
             margin-bottom: 30px;
+            font-size: 1.5em;
+        }
+        .search-form {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .search-form input {
+            padding: 8px 15px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 250px;
+            font-size: 1em;
+        }
+        .search-form button {
+            padding: 8px 15px;
+            background-color: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1em;
+        }
+        .search-form button:hover {
+            background-color: #0b7dda;
         }
         .weather-grid {
             display: grid;
@@ -28,6 +58,11 @@
             padding: 20px;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             text-align: center;
+        }
+        .weather-icon {
+            font-size: 2.5em;
+            margin: 10px 0;
+            color: #2196F3;
         }
         .date {
             font-weight: bold;
@@ -48,10 +83,61 @@
 </head>
 <body>
     <h1>Previsioni Meteo della Settimana</h1>
+    <div class="city-name" th:text="'Città: ' + ${city}"></div>
+    
+    <div class="search-form">
+        <form action="/" method="get">
+            <select name="city" id="citySelect" style="padding: 8px 15px; border: 1px solid #ddd; border-radius: 4px; width: 250px; font-size: 1em; margin-right: 10px;">
+                <option value="">-- Seleziona una città --</option>
+                <option th:each="availableCity : ${availableCities}" 
+                        th:value="${availableCity}" 
+                        th:text="${availableCity}"
+                        th:selected="${availableCity == city}"></option>
+            </select>
+            <span style="margin: 0 10px;">oppure</span>
+            <input type="text" name="newCity" placeholder="Inserisci nuova città" style="padding: 8px 15px; border: 1px solid #ddd; border-radius: 4px; width: 200px; font-size: 1em; margin-right: 10px;">
+            <button type="submit" style="padding: 8px 15px; background-color: #2196F3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em;">Cerca</button>
+        </form>
+        <script>
+            // Script per gestire la selezione della città
+            document.getElementById('citySelect').addEventListener('change', function() {
+                if (this.value) {
+                    document.querySelector('input[name="newCity"]').value = '';
+                }
+            });
+            
+            // Gestione del form per utilizzare o il select o l'input text
+            document.querySelector('form').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const selectValue = document.getElementById('citySelect').value;
+                const inputValue = document.querySelector('input[name="newCity"]').value;
+                
+                // Se è stata selezionata una città dal menu a tendina, usa quella
+                if (selectValue && !inputValue) {
+                    window.location.href = '/?city=' + encodeURIComponent(selectValue);
+                }
+                // Se è stata inserita una nuova città, usa quella
+                else if (inputValue) {
+                    window.location.href = '/?city=' + encodeURIComponent(inputValue);
+                }
+                // Se non è stata selezionata né inserita alcuna città, mostra un messaggio
+                else {
+                    alert('Seleziona una città dal menu a tendina o inserisci una nuova città');
+                }
+            });
+        </script>
+    </div>
+    
+    <div th:if="${error}" style="background-color: #ffcccc; color: #cc0000; padding: 10px; border-radius: 5px; margin-bottom: 20px; text-align: center;">
+        <p th:text="${errorMessage}"></p>
+    </div>
     
     <div class="weather-grid">
         <div class="weather-card" th:each="day : ${forecast}">
             <div class="date" th:text="${#temporals.format(day.date, 'EEEE d MMMM')}"></div>
+            <div class="weather-icon">
+                <i th:class="${iconMapper.getIconClass(day.description)}"></i>
+            </div>
             <div class="description" th:text="${day.description}"></div>
             <div class="details">
                 <div th:text="'Temperatura: ' + ${day.temperature} + '°C'"></div>
