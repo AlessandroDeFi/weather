@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Previsioni Meteo</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            font-family: 'Arial', sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .weather-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+        .weather-card {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .date {
+            font-weight: bold;
+            color: #2196F3;
+            margin-bottom: 10px;
+        }
+        .description {
+            font-size: 1.1em;
+            color: #555;
+            margin: 10px 0;
+        }
+        .details {
+            color: #666;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+    </style>
+</head>
+<body>
+    <h1>Previsioni Meteo della Settimana</h1>
+    
+    <div class="weather-grid">
+        <div class="weather-card" th:each="day : ${forecast}">
+            <div class="date" th:text="${#temporals.format(day.date, 'EEEE d MMMM')}"></div>
+            <div class="description" th:text="${day.description}"></div>
+            <div class="details">
+                <div th:text="'Temperatura: ' + ${day.temperature} + '°C'"></div>
+                <div th:text="'Umidità: ' + ${day.humidity} + '%'"></div>
+                <div th:text="'Vento: ' + ${day.windSpeed} + ' km/h'"></div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
