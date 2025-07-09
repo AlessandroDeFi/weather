@@ -5,10 +5,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         body {
             font-family: 'Arial', sans-serif;
-            max-width: 800px;
+            max-width: 1000px;
             margin: 0 auto;
             padding: 20px;
             background-color: #f5f5f5;
@@ -27,42 +28,88 @@
         .search-form {
             text-align: center;
             margin-bottom: 30px;
+            padding: 20px;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            animation: slideDown 0.5s ease-out;
         }
-        .search-form input {
-            padding: 8px 15px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
+
+        @keyframes slideDown {
+            from { transform: translateY(-20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+
+        .search-form input, .search-form select {
+            padding: 12px 20px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
             width: 250px;
             font-size: 1em;
+            transition: all 0.3s ease;
+            margin: 0 10px;
         }
+
+        .search-form input:focus, .search-form select:focus {
+            border-color: #2196F3;
+            box-shadow: 0 0 0 3px rgba(33, 150, 243, 0.2);
+            outline: none;
+        }
+
         .search-form button {
-            padding: 8px 15px;
+            padding: 12px 25px;
             background-color: #2196F3;
             color: white;
             border: none;
-            border-radius: 4px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(33, 150, 243, 0.2);
         }
+
         .search-form button:hover {
-            background-color: #0b7dda;
+            background-color: #1976D2;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(33, 150, 243, 0.3);
         }
         .weather-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 20px;
+            margin-top: 30px;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         .weather-card {
-            background: white;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            background: linear-gradient(to bottom right, white, #f8f9fa);
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
             text-align: center;
+            transition: all 0.3s ease-in-out;
+            border: 1px solid rgba(0,0,0,0.05);
+        }
+
+        .weather-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.15);
         }
         .weather-icon {
-            font-size: 2.5em;
-            margin: 10px 0;
+            font-size: 2.8em;
+            margin: 15px 0;
             color: #2196F3;
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0% { transform: translateY(0px); }
+            50% { transform: translateY(-5px); }
+            100% { transform: translateY(0px); }
         }
         .date {
             font-weight: bold;
@@ -72,12 +119,27 @@
         .description {
             font-size: 1.1em;
             color: #555;
-            margin: 10px 0;
+            margin: 15px 0;
+            padding: 8px;
+            background-color: rgba(33, 150, 243, 0.05);
+            border-radius: 8px;
+            display: inline-block;
         }
         .details {
             color: #666;
             font-size: 0.9em;
             line-height: 1.5;
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #eee;
+        }
+
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            margin-bottom: 30px;
         }
     </style>
 </head>
@@ -132,6 +194,20 @@
         <p th:text="${errorMessage}"></p>
     </div>
     
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div class="chart-container" style="position: relative; height:300px;">
+            <canvas id="temperatureChart"></canvas>
+        </div>
+        <div class="chart-container" style="position: relative; height:300px;">
+            <canvas id="humidityChart"></canvas>
+        </div>
+    </div>
+    <div style="margin-bottom: 30px;">
+        <div class="chart-container" style="position: relative; height:250px;">
+            <canvas id="windChart"></canvas>
+        </div>
+    </div>
+
     <div class="weather-grid">
         <div class="weather-card" th:each="day : ${forecast}">
             <div class="date" th:text="${#temporals.format(day.date, 'EEEE d MMMM')}"></div>
@@ -146,5 +222,158 @@
             </div>
         </div>
     </div>
+
+    <script th:inline="javascript">
+        const forecast = /*[[${forecast}]]*/ [];
+        const dates = forecast.map(day => new Date(day.date).toLocaleDateString('it-IT', { weekday: 'short' }));
+        const temperatures = forecast.map(day => day.temperature);
+        const humidity = forecast.map(day => day.humidity);
+        const windSpeed = forecast.map(day => day.windSpeed);
+
+        // Grafico temperatura
+        new Chart(document.getElementById('temperatureChart'), {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Temperatura (°C)',
+                    data: temperatures,
+                    borderColor: '#2196F3',
+                    backgroundColor: 'rgba(33, 150, 243, 0.1)',
+                    tension: 0.4,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                animation: {
+                    duration: 2000,
+                    easing: 'easeOutQuart'
+                },
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Andamento Temperature',
+                        font: {
+                            size: 16
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: false,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Grafico umidità
+        new Chart(document.getElementById('humidityChart'), {
+            type: 'bar',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Umidità (%)',
+                    data: humidity,
+                    backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Livelli di Umidità',
+                        font: {
+                            size: 16
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        max: 100,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+
+        // Grafico vento
+        new Chart(document.getElementById('windChart'), {
+            type: 'line',
+            data: {
+                labels: dates,
+                datasets: [{
+                    label: 'Velocità Vento (km/h)',
+                    data: windSpeed,
+                    borderColor: 'rgba(255, 159, 64, 1)',
+                    backgroundColor: 'rgba(255, 159, 64, 0.2)',
+                    borderWidth: 2,
+                    pointStyle: 'circle',
+                    pointRadius: 6,
+                    pointHoverRadius: 8,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: true,
+                        position: 'top'
+                    },
+                    title: {
+                        display: true,
+                        text: 'Velocità del Vento',
+                        font: {
+                            size: 16
+                        }
+                    }
+                },
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: {
+                            color: 'rgba(0, 0, 0, 0.1)'
+                        }
+                    },
+                    x: {
+                        grid: {
+                            display: false
+                        }
+                    }
+                }
+            }
+        });
+    </script>
 </body>
 </html>
