@@ -1,0 +1,5 @@
+{"properties": [{
+  "name": "weather.data.descriptions",
+  "type": "java.lang.String",
+  "description": "A description for 'weather.data.descriptions'"
+}]}
