@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
+import java.time.format.DateTimeFormatter;
 
 @Service
 public class WeatherService {
@@ -19,10 +20,18 @@ public class WeatherService {
     @Autowired
     private WeatherRepository weatherRepository;
     
+    @Autowired
+    private OpenMeteoService openMeteoService;
+    
+    @Autowired
+    private GeocodingService geocodingService;
+    
     @Value("${weather.data.descriptions}")
     private String descriptionsString;
     
     private final Random random = new Random();
+    
+    private final DateTimeFormatter dateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     
     /**
      * Ottiene le previsioni meteo per Roma (città predefinita)
@@ -47,19 +56,62 @@ public class WeatherService {
             // Capitalizza la prima lettera della città per uniformità
             city = capitalizeFirstLetter(city);
             
-            // Ottieni la data odierna
-            LocalDate today = LocalDate.now();
+            // Ottieni le coordinate della città
+            GeocodingService.Coordinates coords = geocodingService.getCoordinates(city);
             
-            // Cerca le previsioni nel database
-            List<WeatherEntity> weatherEntities = weatherRepository.findByCityAndDateGreaterThanEqualOrderByDateAsc(city, today);
+            // Chiama l'API di Open Meteo
+            OpenMeteoService.WeatherApiResponse response = openMeteoService.getWeatherForecast(
+                coords.getLatitude(), 
+                coords.getLongitude()
+            );
             
-            // Se non ci sono dati per questa città, genera dati casuali
-            if (weatherEntities.isEmpty()) {
-                return generateRandomForecast(city);
+            if (response != null && response.getDaily() != null) {
+                List<WeatherData> forecast = new ArrayList<>();
+                List<String> descriptions = Arrays.asList(descriptionsString.split(","));
+                Random random = new Random();
+                
+                for (int i = 0; i < response.getDaily().getTime().size(); i++) {
+                    LocalDate date = LocalDate.parse(response.getDaily().getTime().get(i), dateFormatter);
+                    String description = descriptions.get(random.nextInt(descriptions.size()));
+                    
+                    WeatherData weatherData = new WeatherData(
+                        date,
+                        description,
+                        response.getDaily().getTemperatures().get(i),
+                        response.getDaily().getHumidity().get(i),
+                        response.getDaily().getWindSpeed().get(i)
+                    );
+                    
+                    forecast.add(weatherData);
+                    
+                    // Salva nel database
+                    WeatherEntity entity = new WeatherEntity(
+                        city,
+                        date,
+                        description,
+                        response.getDaily().getTemperatures().get(i),
+                        response.getDaily().getHumidity().get(i),
+                        response.getDaily().getWindSpeed().get(i)
+                    );
+                    weatherRepository.save(entity);
+                }
+                
+                return forecast;
             }
             
-            // Converti le entità in oggetti WeatherData
-            return mapToWeatherData(weatherEntities);
+            // Se la chiamata API fallisce, usa i dati dal database se disponibili
+            List<WeatherEntity> weatherEntities = weatherRepository.findByCityAndDateGreaterThanEqualOrderByDateAsc(
+                city, 
+                LocalDate.now()
+            );
+            
+            if (!weatherEntities.isEmpty()) {
+                return mapToWeatherData(weatherEntities);
+            }
+            
+            // Se non ci sono dati nel database, genera dati casuali
+            return generateRandomForecast(city);
+            
         } catch (Exception e) {
             // In caso di errore, genera dati casuali
             return getFallbackForecast(city);
